@@ -25,6 +25,7 @@ import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.os.Build
 import com.duckduckgo.app.browser.SpecialUrlDetector.UrlType
+import com.duckduckgo.app.browser.applinks.SamsungStoreLinkHandler
 import com.duckduckgo.appbuildconfig.api.AppBuildConfig
 import com.duckduckgo.privacy.config.api.AmpLinkType
 import com.duckduckgo.privacy.config.api.AmpLinks
@@ -46,6 +47,7 @@ interface SpecialUrlDetector {
             val appIntent: Intent? = null,
             val excludedComponents: List<ComponentName>? = null,
             val uriString: String,
+            val storePackage: String? = null,
         ) : UrlType()
 
         class NonHttpAppLink(
@@ -67,6 +69,7 @@ class SpecialUrlDetectorImpl(
     private val packageManager: PackageManager,
     private val ampLinks: AmpLinks,
     private val trackingParameters: TrackingParameters,
+    private val samsungStoreLinkHandler: SamsungStoreLinkHandler,
     private val appBuildConfig: AppBuildConfig,
 ) : SpecialUrlDetector {
 
@@ -102,6 +105,8 @@ class SpecialUrlDetectorImpl(
         trackingParameters.cleanTrackingParameters(initiatingUrl = initiatingUrl, url = uriString)?.let { cleanedUrl ->
             return UrlType.TrackingParameterLink(cleanedUrl = cleanedUrl)
         }
+
+        samsungStoreLinkHandler.handleSamsungStoreLink(uriString)?.let { return it }
 
         if (appBuildConfig.sdkInt >= Build.VERSION_CODES.N) {
             try {

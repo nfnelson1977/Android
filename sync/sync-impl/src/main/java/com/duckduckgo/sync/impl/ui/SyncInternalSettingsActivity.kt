@@ -94,6 +94,9 @@ class SyncInternalSettingsActivity : DuckDuckGoActivity() {
         binding.syncRecoveryCodeCta.setOnClickListener {
             viewModel.useRecoveryCode(binding.syncRecoveryCode.text)
         }
+        binding.syncFaviconsPromptCta.setOnClickListener {
+            viewModel.resetFaviconsPrompt()
+        }
     }
 
     private fun observeUiEvents() {

@@ -152,6 +152,7 @@ import com.duckduckgo.site.permissions.api.SitePermissionsManager.SitePermission
 import com.duckduckgo.site.permissions.api.SitePermissionsManager.SitePermissions
 import com.duckduckgo.sync.api.engine.SyncEngine
 import com.duckduckgo.sync.api.engine.SyncEngine.SyncTrigger.FEATURE_READ
+import com.duckduckgo.sync.api.favicons.FaviconsFetchingPrompt
 import com.duckduckgo.voice.api.VoiceSearchAvailability
 import com.duckduckgo.voice.api.VoiceSearchAvailabilityPixelLogger
 import com.jakewharton.rxrelay2.PublishRelay
@@ -225,6 +226,7 @@ class BrowserTabViewModel @Inject constructor(
     private val privacyProtectionsPopupManager: PrivacyProtectionsPopupManager,
     private val privacyProtectionsToggleUsageListener: PrivacyProtectionsToggleUsageListener,
     private val privacyProtectionsPopupExperimentExternalPixels: PrivacyProtectionsPopupExperimentExternalPixels,
+    private val faviconsFetchingPrompt: FaviconsFetchingPrompt,
 ) : WebViewClientListener,
     EditSavedSiteListener,
     DeleteBookmarkListener,
@@ -418,6 +420,7 @@ class BrowserTabViewModel @Inject constructor(
             val filePathCallback: ValueCallback<Array<Uri>>,
             val fileChooserParams: FileChooserRequestedParams,
         ) : Command()
+
         class ShowExistingImageOrCameraChooser(
             val filePathCallback: ValueCallback<Array<Uri>>,
             val fileChooserParams: FileChooserRequestedParams,
@@ -525,6 +528,8 @@ class BrowserTabViewModel @Inject constructor(
         data class WebShareRequest(val data: JsCallbackData) : Command()
         data class ScreenLock(val data: JsCallbackData) : Command()
         object ScreenUnlock : Command()
+
+        data object ShowFaviconsPrompt : Command()
     }
 
     sealed class NavigationCommand : Command() {
@@ -2717,7 +2722,7 @@ class BrowserTabViewModel @Inject constructor(
         appLinksHandler.updatePreviousUrl(null)
     }
 
-    fun clearPreviousAppLink() {
+    private fun clearPreviousAppLink() {
         browserViewState.value = currentBrowserViewState().copy(
             previousAppLink = null,
         )
@@ -2913,7 +2918,10 @@ class BrowserTabViewModel @Inject constructor(
         delete(savedSite, true)
     }
 
-    private fun delete(savedSite: SavedSite, deleteBookmark: Boolean = false) {
+    private fun delete(
+        savedSite: SavedSite,
+        deleteBookmark: Boolean = false,
+    ) {
         appCoroutineScope.launch(dispatchers.io()) {
             if (savedSite is Bookmark || deleteBookmark) {
                 faviconManager.deletePersistedFavicon(savedSite.url)
@@ -2930,7 +2938,10 @@ class BrowserTabViewModel @Inject constructor(
         hide(savedSite, DeleteSavedSiteConfirmation(savedSite))
     }
 
-    private fun hide(savedSite: SavedSite, deleteCommand: Command) {
+    private fun hide(
+        savedSite: SavedSite,
+        deleteCommand: Command,
+    ) {
         viewModelScope.launch(dispatchers.io()) {
             when (savedSite) {
                 is Bookmark -> {
@@ -3147,11 +3158,25 @@ class BrowserTabViewModel @Inject constructor(
         )
     }
 
-    fun processJsCallbackMessage(featureName: String, method: String, id: String?, data: JSONObject?) {
+    fun processJsCallbackMessage(
+        featureName: String,
+        method: String,
+        id: String?,
+        data: JSONObject?,
+    ) {
         when (method) {
-            "webShare" -> if (id != null && data != null) { webShare(featureName, method, id, data) }
-            "permissionsQuery" -> if (id != null && data != null) { permissionsQuery(featureName, method, id, data) }
-            "screenLock" -> if (id != null && data != null) { screenLock(featureName, method, id, data) }
+            "webShare" -> if (id != null && data != null) {
+                webShare(featureName, method, id, data)
+            }
+
+            "permissionsQuery" -> if (id != null && data != null) {
+                permissionsQuery(featureName, method, id, data)
+            }
+
+            "screenLock" -> if (id != null && data != null) {
+                screenLock(featureName, method, id, data)
+            }
+
             "screenUnlock" -> screenUnlock()
             else -> {
                 // NOOP
@@ -3159,13 +3184,23 @@ class BrowserTabViewModel @Inject constructor(
         }
     }
 
-    private fun webShare(featureName: String, method: String, id: String, data: JSONObject) {
+    private fun webShare(
+        featureName: String,
+        method: String,
+        id: String,
+        data: JSONObject,
+    ) {
         viewModelScope.launch(dispatchers.main()) {
             command.value = WebShareRequest(JsCallbackData(data, featureName, method, id))
         }
     }
 
-    private fun permissionsQuery(featureName: String, method: String, id: String, data: JSONObject) {
+    private fun permissionsQuery(
+        featureName: String,
+        method: String,
+        id: String,
+        data: JSONObject,
+    ) {
         val response = if (url == null) {
             getDataForPermissionState(featureName, method, id, SitePermissionQueryResponse.Denied)
         } else {
@@ -3178,7 +3213,12 @@ class BrowserTabViewModel @Inject constructor(
         }
     }
 
-    private fun screenLock(featureName: String, method: String, id: String, data: JSONObject) {
+    private fun screenLock(
+        featureName: String,
+        method: String,
+        id: String,
+        data: JSONObject,
+    ) {
         viewModelScope.launch(dispatchers.main()) {
             if (androidBrowserConfig.screenLock().isEnabled()) {
                 withContext(dispatchers.main()) {
@@ -3195,6 +3235,26 @@ class BrowserTabViewModel @Inject constructor(
                     command.value = ScreenUnlock
                 }
             }
+        }
+    }
+
+    fun onHomeShown() {
+        Timber.d("Sync: onHomeShown, checking for favicons prompt")
+        clearPreviousAppLink()
+        viewModelScope.launch(dispatchers.io()) {
+            if (faviconsFetchingPrompt.shouldShow() && currentCtaViewState().favorites.isNotEmpty()) {
+                withContext(dispatchers.main()) {
+                    command.value = ShowFaviconsPrompt
+                }
+            }
+        }
+    }
+
+    fun onFaviconsFetchingEnabled(
+        fetchingEnabled: Boolean,
+    ) {
+        viewModelScope.launch(dispatchers.io()) {
+            faviconsFetchingPrompt.onPromptAnswered(fetchingEnabled)
         }
     }
 

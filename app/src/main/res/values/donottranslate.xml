@@ -46,4 +46,10 @@
     <!-- DRM -->
     <string name="sitePermissionsSettingsDRM">DRM</string>
 
+    <!-- Favicons Fetching -->
+    <string name="faviconsPromptTitle">Download missing icons?</string>
+    <string name="faviconsPromptMessage">Do you want this device to automatically download icons for any new bookmarks synced from your other devices? This will expose the download to your network any time a bookmark is synced.</string>
+    <string name="faviconsPromptPrimaryCta">Keep Bookmark Icons Updated</string>
+    <string name="faviconsPromptSecondaryCta">Not Now</string>
+
 </resources>

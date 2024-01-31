@@ -27,4 +27,7 @@
     <string name="userIdSectionHeader">User ID</string>
     <string name="deviceIdSectionHeader">Device Id</string>
     <string name="deviceNameSectionHeader">Device Name</string>
+
+    <string name="sync_auth_text_for_access">Unlock device to access sync</string>
+    <string name="sync_biometric_prompt_title">Sync is Locked</string>
 </resources>

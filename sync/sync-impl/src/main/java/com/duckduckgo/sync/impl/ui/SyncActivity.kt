@@ -38,6 +38,10 @@ import com.duckduckgo.sync.impl.ConnectedDevice
 import com.duckduckgo.sync.impl.PermissionRequest
 import com.duckduckgo.sync.impl.R
 import com.duckduckgo.sync.impl.ShareAction
+import com.duckduckgo.sync.impl.auth.DeviceAuthenticator
+import com.duckduckgo.sync.impl.auth.DeviceAuthenticator.AuthConfiguration
+import com.duckduckgo.sync.impl.auth.DeviceAuthenticator.AuthResult.Success
+import com.duckduckgo.sync.impl.auth.DeviceAuthenticator.AuthResult.UserCancelled
 import com.duckduckgo.sync.impl.databinding.ActivitySyncBinding
 import com.duckduckgo.sync.impl.databinding.DialogEditDeviceBinding
 import com.duckduckgo.sync.impl.ui.SyncActivityViewModel.Command
@@ -72,6 +76,9 @@ import timber.log.*
 class SyncActivity : DuckDuckGoActivity() {
     private val binding: ActivitySyncBinding by viewBinding()
     private val viewModel: SyncActivityViewModel by bindViewModel()
+
+    @Inject
+    lateinit var deviceAuthenticator: DeviceAuthenticator
 
     private val syncedDevicesAdapter = SyncedDevicesAdapter(
         object : ConnectedDeviceClickListener {
@@ -218,10 +225,30 @@ class SyncActivity : DuckDuckGoActivity() {
 
     private fun processCommand(it: Command) {
         when (it) {
-            is SyncWithAnotherDevice -> connectFlow.launch(null)
-            is IntroCreateAccount -> syncIntroLauncher.launch(SYNC_INTRO)
-            is IntroRecoverSyncData -> syncIntroLauncher.launch(RECOVERY_INTRO)
-            is ShowRecoveryCode -> syncIntroLauncher.launch(RECOVERY_CODE)
+            is SyncWithAnotherDevice -> {
+                authenticate {
+                    connectFlow.launch(null)
+                }
+            }
+
+            is IntroCreateAccount -> {
+                authenticate {
+                    syncIntroLauncher.launch(SYNC_INTRO)
+                }
+            }
+
+            is IntroRecoverSyncData -> {
+                authenticate {
+                    syncIntroLauncher.launch(RECOVERY_INTRO)
+                }
+            }
+
+            is ShowRecoveryCode -> {
+                authenticate {
+                    syncIntroLauncher.launch(RECOVERY_CODE)
+                }
+            }
+
             is AskTurnOffSync -> askTurnOffsync(it.device)
             is AskDeleteAccount -> askDeleteAccount()
             is RecoveryCodePDFSuccess -> {
@@ -236,8 +263,17 @@ class SyncActivity : DuckDuckGoActivity() {
 
             is AskRemoveDevice -> askRemoveDevice(it.device)
             is AskEditDevice -> askEditDevice(it.device)
-            is ShowTextCode -> startActivity(ShowCodeActivity.intent(this))
-            is AddAnotherDevice -> loginFlow.launch(null)
+            is ShowTextCode -> {
+                authenticate {
+                    startActivity(ShowCodeActivity.intent(this))
+                }
+            }
+
+            is AddAnotherDevice -> {
+                authenticate {
+                    loginFlow.launch(null)
+                }
+            }
         }
     }
 
@@ -318,10 +354,8 @@ class SyncActivity : DuckDuckGoActivity() {
         binding.viewSwitcher.displayedChild = if (viewState.showAccount) 1 else 0
 
         if (viewState.showAccount) {
-            if (viewState.loginQRCode != null) {
-                binding.viewSyncEnabled.qrCodeImageView.show()
-                binding.viewSyncEnabled.qrCodeImageView.setImageBitmap(viewState.loginQRCode)
-                binding.viewSyncEnabled.scanQrCodeItem.isEnabled = !viewState.disabledSetupFlows.contains(SetupFlows.SignInFlow)
+            authenticate {
+                onAuthenticationSuccessful(viewState)
             }
         } else {
             with(binding.viewSyncDisabled) {
@@ -332,5 +366,30 @@ class SyncActivity : DuckDuckGoActivity() {
         }
 
         syncedDevicesAdapter.updateData(viewState.syncedDevices)
+    }
+
+    private fun authenticate(onSuccess: () -> Unit) {
+        deviceAuthenticator.authenticate(config = AuthConfiguration(requireUserAction = true), fragmentActivity = this) {
+            when (it) {
+                Success -> onSuccess()
+                else -> { }
+            }
+        }
+    }
+
+    private fun onAuthenticationSuccessful(viewState: ViewState) {
+        if (viewState.loginQRCode != null) {
+            binding.viewSyncEnabled.qrCodeImageView.show()
+            binding.viewSyncEnabled.qrCodeImageView.setImageBitmap(viewState.loginQRCode)
+            binding.viewSyncEnabled.scanQrCodeItem.isEnabled = !viewState.disabledSetupFlows.contains(SetupFlows.SignInFlow)
+        }
+    }
+
+    private fun onAuthenticationCancelled() {
+        finish()
+    }
+
+    private fun onAuthenticationError() {
+        finish()
     }
 }

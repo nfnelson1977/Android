@@ -585,13 +585,7 @@ class BrowserTabFragment :
     }
 
     private val autoconsentCallback = object : AutoconsentCallback {
-        override fun onFirstPopUpHandled() {
-            // Remove comment to promote feature
-            // ctaViewModel.enableAutoconsentCta()
-            // launch {
-            //     viewModel.refreshCta()
-            // }
-        }
+        override fun onFirstPopUpHandled() { }
 
         override fun onPopUpHandled(isCosmetic: Boolean) {
             launch {
@@ -3645,8 +3639,7 @@ class BrowserTabFragment :
             val configuration = lastSeenCtaViewState?.cta
             if (configuration is DaxDialogCta) {
                 activity?.let { activity ->
-                    val listener = if (configuration is DaxAutoconsentCta) daxAutoconsentListener else daxListener
-                    configuration.createCta(activity, listener).apply {
+                    configuration.createCta(activity, daxListener).apply {
                         showDialogHidingPrevious(this, DAX_DIALOG_DIALOG_TAG)
                     }
                 }
@@ -3657,32 +3650,10 @@ class BrowserTabFragment :
             hideHomeCta()
             hideDaxCta()
             activity?.let { activity ->
-                val listener = if (configuration is DaxAutoconsentCta) daxAutoconsentListener else daxListener
-                configuration.createCta(activity, listener).apply {
+                configuration.createCta(activity, daxListener).apply {
                     showDialogIfNotExist(this, DAX_DIALOG_DIALOG_TAG)
                 }
                 viewModel.onCtaShown()
-            }
-        }
-
-        private val daxAutoconsentListener = object : DaxDialogListener {
-            override fun onDaxDialogDismiss() {
-                autoconsent.firstPopUpHandled()
-                viewModel.onDaxDialogDismissed()
-            }
-
-            override fun onDaxDialogHideClick() {
-                viewModel.onUserHideDaxDialog()
-            }
-
-            override fun onDaxDialogPrimaryCtaClick() {
-                webView?.let { autoconsent.setAutoconsentOptOut(it) }
-                viewModel.onUserClickCtaOkButton()
-            }
-
-            override fun onDaxDialogSecondaryCtaClick() {
-                autoconsent.setAutoconsentOptIn()
-                viewModel.onUserClickCtaSecondaryButton()
             }
         }
 

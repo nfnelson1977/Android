@@ -467,16 +467,6 @@ class CtaViewModelTest {
     }
 
     @Test
-    fun whenRefreshCtaWhileBrowsingAndAutoconsentPresentThenReturnOtherCta() = runTest {
-        givenDaxOnboardingActive()
-        testee.enableAutoconsentCta()
-        val site = site(url = "http://www.wikipedia.com")
-        val value = testee.refreshCta(coroutineRule.testDispatcher, isBrowserShowing = true, site = site)
-
-        assertTrue(value is DaxDialogCta.DaxAutoconsentCta)
-    }
-
-    @Test
     fun whenRefreshCtaOnHomeTabThenValueReturnedIsNotDaxDialogCtaType() = runTest {
         givenDaxOnboardingActive()
         val site = site(url = "http://www.wikipedia.com")

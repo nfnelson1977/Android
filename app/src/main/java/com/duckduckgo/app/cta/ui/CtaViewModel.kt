@@ -68,7 +68,6 @@ class CtaViewModel @Inject constructor(
     private val surveyRepository: SurveyRepository,
 ) {
     val surveyLiveData: LiveData<Survey> = surveyRepository.getScheduledLiveSurvey()
-    var canShowAutoconsentCta: AtomicBoolean = AtomicBoolean(false)
 
     @ExperimentalCoroutinesApi
     @VisibleForTesting
@@ -261,14 +260,6 @@ class CtaViewModel @Inject constructor(
                 return null
             }
 
-            val oldAutoconsentValue = canShowAutoconsentCta.get()
-            canShowAutoconsentCta.set(false)
-
-            // Autoconsent
-            if (oldAutoconsentValue && !daxDialogAutoconsentShown()) {
-                return DaxDialogCta.DaxAutoconsentCta(onboardingStore, appInstallStore, appTheme)
-            }
-
             if (!canShowDaxDialogCta()) return null
 
             // Trackers blocked
@@ -297,13 +288,7 @@ class CtaViewModel @Inject constructor(
         }
     }
 
-    fun enableAutoconsentCta() {
-        canShowAutoconsentCta.set(true)
-    }
-
     private fun daxDialogIntroShown(): Boolean = dismissedCtaDao.exists(CtaId.DAX_INTRO)
-
-    private fun daxDialogAutoconsentShown(): Boolean = dismissedCtaDao.exists(CtaId.DAX_DIALOG_AUTOCONSENT)
 
     private fun daxDialogEndShown(): Boolean = dismissedCtaDao.exists(CtaId.DAX_END)
 

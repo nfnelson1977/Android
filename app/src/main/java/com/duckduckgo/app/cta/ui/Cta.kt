@@ -239,35 +239,6 @@ sealed class DaxDialogCta(
         }
     }
 
-    class DaxAutoconsentCta(
-        override val onboardingStore: OnboardingStore,
-        override val appInstallStore: AppInstallStore,
-        private val appTheme: AppTheme,
-    ) : DaxDialogCta(
-        CtaId.DAX_DIALOG_AUTOCONSENT,
-        AppPixelName.ONBOARDING_DAX_CTA_SHOWN,
-        AppPixelName.ONBOARDING_DAX_CTA_OK_BUTTON,
-        null,
-        Pixel.PixelValues.DAX_AUTOCONSENT_CTA,
-        onboardingStore,
-        appInstallStore,
-    ) {
-        override fun createCta(context: Context, daxDialogListener: DaxDialogListener): DialogFragment {
-            val lottieRes = if (appTheme.isLightModeEnabled()) R.raw.cookie_banner_light else R.raw.cookie_banner_dark
-            val dialog = LottieDaxDialog.newInstance(
-                titleText = context.getString(R.string.autoconsentDialogTitle),
-                descriptionText = context.getString(R.string.autoconsentDialogDescription),
-                lottieRes = lottieRes,
-                primaryButtonText = context.getString(R.string.autoconsentPrimaryCta),
-                secondaryButtonText = context.getString(R.string.autoconsentSecondaryCta),
-                hideButtonText = context.getString(R.string.daxDialogHideButton),
-                showHideButton = false,
-            )
-            dialog.setDaxDialogListener(daxDialogListener)
-            return dialog
-        }
-    }
-
     companion object {
         private const val MAX_TRACKERS_SHOWS = 2
         const val SERP = "duckduckgo"
